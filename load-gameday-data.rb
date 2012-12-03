@@ -71,20 +71,6 @@ class GamedayFetcher
     day_path = "#{league}/year_#{year}/month_#{month}/day_#{day}/"
     day_url = GAMEDAY_BASE_URL + day_path
 
-    # Get the list of all pitchers from this day
-    pitcher_files = get_links_on_page(day_url + 'pitchers/').select {|f| f.end_with? 'xml'}
-    pitcher_files.each do |xml_filename|
-
-      # This is the source url
-      pitcher_url =  "#{day_url}pitchers/#{xml_filename}"
-
-      # And the destination for the local file
-      pitcher_file = "#{DEST_FOLDER}#{day_path}pitchers/#{xml_filename}"
-
-      # If the destination file doesn't already exist, add it to the queue
-      dl_queue << pitcher_url unless File.exists? pitcher_file
-    end
-
     # Get the root directory for each game played today
     # We'll do each one in its own thread to speed things up
     game_threads = []
@@ -124,6 +110,7 @@ class GamedayFetcher
             attempts = 0
             begin
               response = Net::HTTP.get_response GAMEDAY_HOST, url
+              puts response.body
               if response.code == '200'
                 write_file(filename, response.body)
               else
