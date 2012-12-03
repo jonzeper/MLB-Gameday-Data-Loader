@@ -3,39 +3,18 @@ require 'hpricot'
 require 'fileutils'
 require 'benchmark'
 
-DEST_FOLDER = './data/'
+DEST_FOLDER = 'data'
 GAMEDAY_HOST = 'gd2.mlb.com'
-GAMEDAY_BASE_URL = '/components/game/mlb/'
+GAMEDAY_BASE_URL = '/components/game/'
+CONCURRENT_DOWNLOADS = 3
 
-
-year='2010'
-month='04'
-day='01'
+year   = '2012'
+month  = '06'
+day    = '01'
+league = 'aaa'
 
 $errors = []
 
-# Writes the gameday data to the file specified.  
-# Does not overwrite existing files.
-def write_file(file_path, gd_data)
-  if gd_data && !File.exists?(file_path)
-    FileUtils.mkdir_p(File.dirname(file_path))
-    File.open(file_path, "w") do |data|
-      data << gd_data
-    end
-  end
-end
-
-# response = Net::HTTP.get_response GAMEDAY_HOST, url
-
-# puts "getting #{url}"
-# if response.code == '200'
-#   Hpricot(response.body).search('a').each { |a| puts a[:href] }
-# else
-#   p 'bad'
-# end
-
-def get_game(game_path)
-end
 
 class GamedayFetcher
   attr_accessor :errors, :dl_queue
@@ -45,92 +24,102 @@ class GamedayFetcher
     self.dl_queue = []
   end
 
+
+  # write_file (path, data)
+  #
+  # Writes the given data to the file path specified.
+  # Does nothing if file already exists or data is empty
+  def write_file(path, data)
+    return if !data || File.exists?(path)
+
+    # Create any parent directories if they don't exist
+    FileUtils.mkdir_p(File.dirname(path))
+
+    # Write data to the file
+    File.open(path, "w") { |file| file << gd_data }
+  end
+
+
+  # get_links_on_page (url)
+  #
+  # Parses the html file at given url and returns a list of all hrefs from <a> tags on the page
   def get_links_on_page(url)
-    puts "Getting links from #{url}"
+    # puts "Getting links from #{url}"
+
+    # Grab the html file
     response = Net::HTTP.get_response GAMEDAY_HOST, url
+
     if response.code == '200'
-      return Hpricot(response.body).search('a')
+      # If success, parse the file with Hpricot and return just the href attribute from all <a> tags 
+      return Hpricot(response.body).search('a').map { |e| e[:href] }
     else
+      # If http error, record the error and return an empty array
       self.errors << {url => response.code}
       return []
     end
   end
 
-  def get_day(year, month, day)
-    day_path = "year_#{year}/month_#{month}/day_#{day}/"
-    day_url = GAMEDAY_BASE_URL + day_path
+  # get_day (league, year, month, day)
+  #
+  # Download all files for given league on given date
+  def get_day(league, year, month, day)
 
+    # Initialize an empty array to hold a list of urls to download
     dl_queue = []
 
-    # get_links_on_page(day_url + 'batters/').each {
-    #   |a|
-    #   batter_url =  "#{day_url}batters/#{a[:href]}"
-    #   batter_file = "#{DEST_FOLDER}#{day_path}batters/#{a[:href]}"
+    # Determine the root directory for this day
+    day_path = "#{league}/year_#{year}/month_#{month}/day_#{day}/"
+    day_url = GAMEDAY_BASE_URL + day_path
 
-    #   if (!File.exists? batter_file) && (batter_url.end_with?('xml'))
-    #     # response2 = Net::HTTP.get_response GAMEDAY_HOST, batter_url
-    #     # write_file(batter_file, response2.body)
-    #     dl_queue << batter_url
-    #   end
-    # }
+    # Get the list of all pitchers from this day
+    pitcher_files = get_links_on_page(day_url + 'pitchers/').select {|f| f.end_with? 'xml'}
+    pitcher_files.each do |xml_filename|
 
-    get_links_on_page(day_url + 'pitchers/').each {
-      |a|
-      pitcher_url =  "#{day_url}pitchers/#{a[:href]}"
-      pitcher_file = "#{DEST_FOLDER}#{day_path}pitchers/#{a[:href]}"
+      # This is the source url
+      pitcher_url =  "#{day_url}pitchers/#{xml_filename}"
 
-      if (!File.exists? pitcher_file) && (pitcher_url.end_with?('xml'))
-        dl_queue << pitcher_url
-      end
-    }
+      # And the destination for the local file
+      pitcher_file = "#{DEST_FOLDER}#{day_path}pitchers/#{xml_filename}"
 
+      # If the destination file doesn't already exist, add it to the queue
+      dl_queue << pitcher_url unless File.exists? pitcher_file
+    end
+
+    # Get the root directory for each game played today
+    # We'll do each one in its own thread to speed things up
     game_threads = []
-    get_links_on_page(day_url).each {
-      |a|
-      if a[:href].start_with?('gid_')
-        game_threads << Thread.new {
-          game_url = day_url + a[:href]
-          dl_queue << game_url + 'boxscore.xml'
-          dl_queue << game_url + 'game.xml'
-          dl_queue << game_url + 'game_events.xml'
-          dl_queue << game_url + 'linescore.xml'
-          dl_queue << game_url + 'players.xml'
 
-          # get_links_on_page(game_url + 'batters/').each {
-          #   |a|
-          #   if a[:href].end_with?('xml')
-          #     dl_queue << game_url + 'batters/' + a[:href]
-          #   end
-          # }
-          
-          # get_links_on_page(game_url + 'inning/').each {
-          #   |a|
-          #   if a[:href].end_with?('xml')
-          #     dl_queue << game_url + 'inning/' + a[:href]
-          #   end
-          # }
+    # Game directories start with 'gid_', so just get those
+    get_links_on_page(day_url).select {|f| f.start_with? 'gid_' }.each do |game_path|
+      game_threads << Thread.new {
+        game_url = day_url + game_path
+        dl_queue << game_url + 'boxscore.xml'
+        dl_queue << game_url + 'game.xml'
+        dl_queue << game_url + 'game_events.xml'
+        dl_queue << game_url + 'linescore.xml'
+        dl_queue << game_url + 'players.xml'
 
-          get_links_on_page(game_url + 'pitchers/').each {
-            |a|
-            if a[:href].end_with?('xml')
-              dl_queue << game_url + 'pitchers/' + a[:href]
-            end
-          }  
-        }
-      end
-    }
+        # Get all the pitchers from this game
+        get_links_on_page(game_url + 'pitchers/').select{|f| f.end_with? 'xml' }.each do |xml_filename|
+          dl_queue << game_url + 'pitchers/' + xml_filename
+        end
+      }
+    end
+
+    # Download all those games
     game_threads.each {|t| t.join}
 
+    # Create threads for downloading the queued files
+    dl_threads = []
     total_dls = dl_queue.length
     completed_dls = 0
-    dl_threads = []
-    3.times do
+    CONCURRENT_DOWNLOADS.times do
       dl_threads << Thread.new {
         while url = dl_queue.shift
           filename = DEST_FOLDER + url
 
-          if !File.exists?(filename)
-            puts "Downloading #{filename} #{total_dls - (completed_dls += 1)} remain"
+          unless File.exists?(filename)
+            # puts "Downloading #{filename} #{total_dls - (completed_dls += 1)} remain"
             
             attempts = 0
             begin
@@ -139,10 +128,11 @@ class GamedayFetcher
                 write_file(filename, response.body)
               else
                 self.errors << {url => response.code}
+                puts "ERROR #{filename} : #{response.code}"
               end
             rescue Exception => e
               if (attempts += 1) < 4
-                puts "Retrying #{filename}"
+                # puts "Retrying #{filename}"
                 retry
               end
               self.errors << {url => e.message}
@@ -158,7 +148,5 @@ class GamedayFetcher
   end
 end
 
-
-
 gdf = GamedayFetcher.new
-gdf.get_day(year,month,day)
+gdf.get_day(league,year,month,day)
