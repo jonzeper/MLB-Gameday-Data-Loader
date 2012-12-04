@@ -25,9 +25,6 @@ Files we care about
 			bats
 			throws
 
-	game.xml
-		The only thing I see here which isn't in linescore.xml is the City, ST where the game is played
-
 	inning/
 		inning_#.xml
 			series of atbat items, with brief info on each pitch (Ball, Strike, Foul)
@@ -38,9 +35,6 @@ Files we care about
 		inning_Scores.xml
 			only useful for realtime gameday feed
 
-	linescore.xml
-		Some more info about the game - includes team nicknames
-
 	pbp/
 		This contains detailed info about each atbat including result and xy for each pitch
 		I guess we only need to get the pitchers folder here since they'll have the same info in each folder?
@@ -49,6 +43,12 @@ Files we care about
 
 		batters/
 		pitchers/
+
+	game.xml
+		The only thing I see here which isn't in linescore.xml is the City, ST where the game is played
+
+	linescore.xml
+		Some more info about the game - includes team nicknames
 
 	players.xml
 		I don't think this has anything useful for us, but let's grab it anyway

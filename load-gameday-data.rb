@@ -75,18 +75,20 @@ class GamedayFetcher
     # Game directories start with 'gid_', so just get those
     get_links_on_page(day_url).select {|f| f.start_with? 'gid_' }.each do |game_path|
       puts "Found game #{game_path}"
+      game_url = day_url + game_path
 
+      # Create a new thread which will download files and crawl subdirs
       game_threads << Thread.new {
-        game_url = day_url + game_path
         @dl_queue << game_url + 'boxscore.xml'
         @dl_queue << game_url + 'game.xml'
-        @dl_queue << game_url + 'game_events.xml'
         @dl_queue << game_url + 'linescore.xml'
         @dl_queue << game_url + 'players.xml'
 
-        # Get all the pitchers from this game
-        get_links_on_page(game_url + 'pitchers/').select{|f| f.end_with? 'xml' }.each do |xml_filename|
-          @dl_queue << game_url + 'pitchers/' + xml_filename
+        # Get subdirectory listings (pbp only exists for a couple older years)
+        ['pitchers/','batters/','inning/','pbp/'].each do |dir|
+          get_links_on_page(game_url + dir).select{|f| f.end_with? 'xml' }.each do |xml_filename|
+            @dl_queue << game_url + dir + xml_filename
+          end
         end
       }
     end
