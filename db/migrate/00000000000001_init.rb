@@ -10,5 +10,11 @@ class Init < ActiveRecord::Migration
       t.integer :league_id
       t.string  :league, limit: 3
     end
+
+    create_table :stadia do |t|
+      t.string :name
+      t.string :venue_w_chan_loc
+      t.string :location
+    end
   end
 end
