@@ -9,6 +9,8 @@ class Init < ActiveRecord::Migration
       t.integer :division_id
       t.integer :league_id
       t.string  :league, limit: 3
+      t.integer :w
+      t.integer :l
     end
 
     create_table :stadia do |t|
