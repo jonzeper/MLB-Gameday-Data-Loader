@@ -24,14 +24,17 @@ end
 
 namespace :gd do
   task :update => 'db:establish_connection' do
-    require './GamedayFetcher'
-
     year   = '2012'
     month  = '06'
     day    = '01'
     league = 'aaa'
 
+    require './GamedayFetcher'
     gdf = GamedayFetcher.new
     gdf.get_day(league,year,month,day)
+
+    require './GamedayParser'
+    gdp = GamedayParser.new
+    gdp.parse_day(league,year,month,day)
   end
 end
