@@ -2,9 +2,11 @@ GEM
   remote: http://rubygems.org/
   specs:
     hpricot (0.8.6)
+    nokogiri (1.5.6)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
   hpricot (~> 0.8.6)
+  nokogiri (= 1.5.6)

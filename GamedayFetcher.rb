@@ -1,12 +1,44 @@
 require 'net/http'
-require 'hpricot'
+require 'hpricot' # TODO: Migrate to nokogiri
 require 'fileutils'
 require 'benchmark'
+require 'nokogiri'
+
+require './app/models/team'
+require './app/models/stadium'
 
 DEST_FOLDER = 'data'
 GAMEDAY_HOST = 'gd2.mlb.com'
 GAMEDAY_BASE_URL = '/components/game/'
-CONCURRENT_DOWNLOADS = 5
+CONCURRENT_DOWNLOADS = 1
+
+def xml_attributes_to_model_attributes(xml_node, model_class)
+  Hash[xml_node.attributes.map {|k,v| [v.name, v.value]}].slice(*model_class.column_names)
+end
+
+def update_model_from_xml_node(model_class, xml_node)
+  node_attributes = xml_attributes_to_model_attributes(xml_node, model_class)
+  instance = model_class.find_or_initialize_by_id(xml_node['id'])
+  instance.update_attributes(node_attributes)
+  instance.save!
+end
+
+def parse_game_xml(game_xml_path)
+  xml = Nokogiri::XML(open(game_xml_path))
+  team_xml_nodes = xml.xpath('//team')
+  for team_xml_node in team_xml_nodes
+    update_model_from_xml_node(Team, team_xml_node)
+  end
+  stadium_xml_node = xml.xpath('//stadium').first
+  update_model_from_xml_node(Stadium, stadium_xml_node)
+end
+
+def parse_xml_file(path)
+  filename = path.split('/')[-1]
+  if filename == 'game.xml'
+    parse_game_xml(path)
+  end
+end
 
 class GamedayFetcher
   attr_accessor :errors, :dl_queue
@@ -28,7 +60,7 @@ class GamedayFetcher
     FileUtils.mkdir_p(File.dirname(path))
 
     # Write data to the file
-    File.open(path, "w") { |file| file << gd_data }
+    File.open(path, "w") { |file| file << data }
   end
 
 
@@ -42,7 +74,7 @@ class GamedayFetcher
     response = Net::HTTP.get_response GAMEDAY_HOST, url
 
     if response.code == '200'
-      # If success, parse the file with Hpricot and return just the href attribute from all <a> tags 
+      # If success, parse the file with Hpricot and return just the href attribute from all <a> tags
       return Hpricot(response.body).search('a').map { |e| e[:href] }
     else
       # If http error, record the error and return an empty array
@@ -101,14 +133,16 @@ class GamedayFetcher
 
           if File.exists?(filename)
             print '_'
+            parse_xml_file(filename)
           else
             # puts "Downloading #{filename} #{total_dls - (completed_dls += 1)} remain"
-            
+
             attempts = 0
             begin
               response = Net::HTTP.get_response GAMEDAY_HOST, url
               if response.code == '200'
                 write_file(filename, response.body)
+                parse_xml_file(filename)
                 print '.'
               else
                 @errors << {url => response.code}
