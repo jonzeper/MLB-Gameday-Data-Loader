@@ -7,6 +7,7 @@ require 'nokogiri'
 require './app/models/team'
 require './app/models/stadium'
 require './app/models/player'
+require './app/models/game'
 
 DEST_FOLDER = 'data'
 GAMEDAY_HOST = 'gd2.mlb.com'
@@ -41,11 +42,23 @@ def parse_batter_or_pitcher_xml(xml_path)
   update_model_from_xml_node(Player, player_xml_node)
 end
 
+def parse_linescore_xml(xml_path)
+  xml = Nokogiri::XML(open(xml_path))
+  game_xml_node = xml.xpath('//game').first
+  game_xml_node['mlbam_id'] = game_xml_node.remove_attribute('id').value
+  game_attributes = xml_attributes_to_model_attributes(game_xml_node, Game)
+  game = Game.find_or_initialize_by_mlbam_id(game_xml_node['mlbam_id'])
+  game.update_attributes(game_attributes)
+  game.save!
+end
+
 def parse_xml_file(path)
   filename = path.split('/')[-1]
   parent_dir = path.split('/')[-2]
   if filename == 'game.xml'
     parse_game_xml(path)
+  elsif filename == 'linescore.xml'
+    parse_linescore_xml(path)
   elsif %w[batters pitchers].include? parent_dir
     parse_batter_or_pitcher_xml(path)
   end
