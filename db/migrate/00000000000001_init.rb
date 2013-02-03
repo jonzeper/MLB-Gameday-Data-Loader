@@ -3,7 +3,6 @@ class Init < ActiveRecord::Migration
     create_table :teams do |t|
       t.string  :code,   limit: 3
       t.string  :abbrev, limit: 3
-      t.integer :mlbam_id
       t.string  :name
       t.string  :name_full
       t.string  :name_brief
