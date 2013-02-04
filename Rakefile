@@ -1,5 +1,6 @@
 namespace :db do
   require 'active_record'
+  require 'logger'
 
   task :establish_connection do
     require 'yaml'
@@ -9,7 +10,6 @@ namespace :db do
 
   desc "Migrate the database"
   task :migrate => :establish_connection do
-    require 'logger'
     ActiveRecord::Base.logger = Logger.new(STDOUT)
     ActiveRecord::Migration.verbose = true
     ActiveRecord::Migrator.migrate('db/migrate')
@@ -19,6 +19,14 @@ namespace :db do
   task :rollback => :establish_connection do
     step = ENV['STEP'] ? ENV['STEP'].to_i : 1
     ActiveRecord::Migrator.rollback('db/migrate', step)
+  end
+
+  desc 'Rolls back all migrations and reruns them'
+  task :reset => :establish_connection do
+    ActiveRecord::Base.logger = Logger.new(STDOUT)
+    ActiveRecord::Migration.verbose = true
+    ActiveRecord::Migrator.down('db/migrate')
+    ActiveRecord::Migrator.migrate('db/migrate')
   end
 end
 
