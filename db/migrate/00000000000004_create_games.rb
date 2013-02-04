@@ -9,6 +9,8 @@ class CreateGames < ActiveRecord::Migration
       t.string  :ampm, limit: 2
       t.string  :game_type
       t.string  :original_date
+      t.string  :status
+      t.string  :reason
       t.integer :venue_id
       t.integer :scheduled_innings
       t.integer :home_team_id
