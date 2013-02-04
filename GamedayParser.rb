@@ -42,7 +42,6 @@ class GamedayParser
     node_attributes = xml_attributes_to_model_attributes(xml_node, model_class)
     instance = model_class.find_or_initialize_by_id(xml_node['id'])
     instance.update_attributes(node_attributes)
-    instance.save!
   end
 
   def parse_game_xml(game_xml_path)
@@ -89,7 +88,6 @@ class GamedayParser
     game_attributes = xml_attributes_to_model_attributes(game_xml_node, Game)
     game = Game.find_or_initialize_by_mlbam_id(game_xml_node['mlbam_id'])
     game.update_attributes(game_attributes)
-    game.save!
     return game
   end
 end
