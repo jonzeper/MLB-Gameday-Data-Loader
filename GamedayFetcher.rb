@@ -9,7 +9,7 @@ require './lib/zip_file_generator'
 DEST_FOLDER = 'data'
 GAMEDAY_HOST = 'gd2.mlb.com'
 GAMEDAY_BASE_URL = '/components/game/'
-CONCURRENT_DOWNLOADS = 1
+CONCURRENT_DOWNLOADS = 5
 
 class GamedayFetcher
   attr_accessor :errors, :dl_queue
