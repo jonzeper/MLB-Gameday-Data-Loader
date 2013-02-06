@@ -9,6 +9,15 @@ class GamedayParser
   require './app/models/at_bat'
   require './app/models/pitch'
 
+
+  def parse_days(league, start_date, end_date)
+    for date in start_date..end_date
+      parse_day(league, date.year, date.month, date.day)
+    end
+  end
+
+  private
+
   def parse_day(league, year, month, day)
     month = month.to_s.rjust(2,'0')
     day = day.to_s.rjust(2,'0')
@@ -19,8 +28,6 @@ class GamedayParser
       parse_game_dir(zipfile, game_dir) if game_dir.start_with? 'gid'
     end
   end
-
-  private
 
   def parse_game_dir(zipfile, game_dir)
     print "Reading game directory #{game_dir}..."

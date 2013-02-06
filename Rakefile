@@ -42,6 +42,6 @@ namespace :gd do
 
     require './GamedayParser'
     gdp = GamedayParser.new
-    gdp.parse_day(league,year,month,day)
+    gdp.parse_days(league, start_date, end_date)
   end
 end
