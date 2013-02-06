@@ -31,17 +31,24 @@ namespace :db do
 end
 
 namespace :gd do
-  task :update => 'db:establish_connection' do
-    start_date = Date.new(2012,4,1)
-    end_date = Date.new(2012,4,15)
-    league = 'aaa'
+  start_date = Date.new(2012,4,1)
+  end_date = Date.new(2012,4,1)
+  league = 'aaa'
 
+  desc 'Download files from gameday'
+  task :fetch do
     require './GamedayFetcher'
     gdf = GamedayFetcher.new
     gdf.get_days(league, start_date, end_date)
+  end
 
+  desc 'Read downloaded gameday files and parse into db'
+  task :parse => 'db:establish_connection' do
     require './GamedayParser'
     gdp = GamedayParser.new
     gdp.parse_days(league, start_date, end_date)
   end
+
+  desc 'Download and parse files from gameday'
+  task :update => [:fetch, :parse]
 end
