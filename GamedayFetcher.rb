@@ -4,6 +4,8 @@ require 'fileutils'
 require 'benchmark'
 require 'nokogiri'
 
+require './lib/zip_file_generator'
+
 DEST_FOLDER = 'data'
 GAMEDAY_HOST = 'gd2.mlb.com'
 GAMEDAY_BASE_URL = '/components/game/'
@@ -137,6 +139,13 @@ class GamedayFetcher
     end
 
     dl_threads.each {|t| t.join}
+
+    puts "\nZipping..."
+    day_folder = DEST_FOLDER + day_url
+    day_name = day_folder.split('/')[-1]
+    zf = ZipFileGenerator.new(day_folder, "#{day_folder}../#{day_name}.zip")
+    zf.write()
+    FileUtils.rm_rf(day_folder)
 
     puts ''
     puts "Done with #{@errors.length} errors"

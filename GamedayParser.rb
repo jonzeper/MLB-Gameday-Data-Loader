@@ -1,5 +1,6 @@
 class GamedayParser
   require 'nokogiri'
+  require 'zip/zipfilesystem'
 
   require './app/models/team'
   require './app/models/stadium'
@@ -9,28 +10,33 @@ class GamedayParser
   require './app/models/pitch'
 
   def parse_day(league, year, month, day)
-    day_path = "data/components/game/#{league}/year_#{year}/month_#{month}/day_#{day}"
-    Dir["#{day_path}/*"].each do |f|
-      parse_game_dir(f) if f.split('/')[-1].start_with?('gid')
+    month = month.to_s.rjust(2,'0')
+    day = day.to_s.rjust(2,'0')
+
+    day_zip = "data/components/game/#{league}/year_#{year}/month_#{month}/day_#{day}.zip"
+    zipfile = Zip::ZipFile.open(day_zip)
+    zipfile.dir.entries('.').each do |game_dir|
+      parse_game_dir(zipfile, game_dir) if game_dir.start_with? 'gid'
     end
-    puts 'Done!'
   end
 
   private
 
-  def parse_game_dir(game_dir)
+  def parse_game_dir(zipfile, game_dir)
     print "Reading game directory #{game_dir}..."
 
-    game = parse_linescore_xml("#{game_dir}/linescore.xml")
-    return unless game.status == 'Final'
+    game = parse_linescore_xml(zipfile.file.read("#{game_dir}/linescore.xml"))
+    return if game.status != 'Final'
 
-    parse_inning_all_xml(game, "#{game_dir}/inning/inning_all.xml")
-    parse_game_xml("#{game_dir}/game.xml")
+    parse_inning_all_xml(game, zipfile.file.read("#{game_dir}/inning/inning_all.xml"))
+    parse_game_xml(zipfile.file.read("#{game_dir}/game.xml"))
 
-    Dir["#{game_dir}/batters","#{game_dir}/pitchers"].each do |f|
-      parse_batter_or_pitcher_xml(f)
+    zipfile.dir.entries("#{game_dir}/batters").each do |f|
+      parse_batter_or_pitcher_xml(zipfile.file.read("#{game_dir}/batters/#{f}"))
     end
-    puts
+    zipfile.dir.entries("#{game_dir}/pitchers").each do |f|
+      parse_batter_or_pitcher_xml(zipfile.file.read("#{game_dir}/pitchers/#{f}"))
+    end
   end
 
   def xml_attributes_to_model_attributes(xml_node, model_class)
@@ -44,8 +50,8 @@ class GamedayParser
     instance.update_attributes(node_attributes)
   end
 
-  def parse_game_xml(game_xml_path)
-    xml = Nokogiri::XML(open(game_xml_path))
+  def parse_game_xml(xml)
+    xml = Nokogiri::XML(xml)
     team_xml_nodes = xml.xpath('//team')
     for team_xml_node in team_xml_nodes
       update_model_from_xml_node(Team, team_xml_node)
@@ -54,14 +60,14 @@ class GamedayParser
     update_model_from_xml_node(Stadium, stadium_xml_node)
   end
 
-  def parse_batter_or_pitcher_xml(xml_path)
-    xml = Nokogiri::XML(open(xml_path))
+  def parse_batter_or_pitcher_xml(xml)
+    xml = Nokogiri::XML(xml)
     player_xml_node = xml.xpath('//Player').first
     update_model_from_xml_node(Player, player_xml_node)
   end
 
-  def parse_inning_all_xml(game, xml_path)
-    xml = Nokogiri::XML(open(xml_path))
+  def parse_inning_all_xml(game, xml)
+    xml = Nokogiri::XML(xml)
     atbat_xml_nodes = xml.xpath('//atbat')
     for atbat_xml_node in atbat_xml_nodes
       atbat_attributes = xml_attributes_to_model_attributes(atbat_xml_node, AtBat)
@@ -81,8 +87,8 @@ class GamedayParser
     end
   end
 
-  def parse_linescore_xml(xml_path)
-    xml = Nokogiri::XML(open(xml_path))
+  def parse_linescore_xml(xml)
+    xml = Nokogiri::XML(xml)
     game_xml_node = xml.xpath('//game').first
     game_xml_node['mlbam_id'] = game_xml_node.remove_attribute('id').value
     game_attributes = xml_attributes_to_model_attributes(game_xml_node, Game)

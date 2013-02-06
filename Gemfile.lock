@@ -3,6 +3,7 @@ GEM
   specs:
     hpricot (0.8.6)
     nokogiri (1.5.6)
+    rubyzip (0.9.9)
 
 PLATFORMS
   ruby
@@ -10,3 +11,4 @@ PLATFORMS
 DEPENDENCIES
   hpricot (~> 0.8.6)
   nokogiri (= 1.5.6)
+  rubyzip (= 0.9.9)
