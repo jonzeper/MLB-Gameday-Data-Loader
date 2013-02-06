@@ -52,12 +52,20 @@ class GamedayFetcher
     end
   end
 
+  def get_days(league, start_date, end_date)
+    for date in start_date..end_date
+      get_day(league, date.year, date.month, date.day)
+    end
+  end
+
   # get_day (league, year, month, day)
   #
   # Download all files for given league on given date
   def get_day(league, year, month, day)
 
     # Determine the root directory for this day
+    month = month.to_s.rjust(2,'0')
+    day = day.to_s.rjust(2,'0')
     day_path = "#{league}/year_#{year}/month_#{month}/day_#{day}/"
     day_url = GAMEDAY_BASE_URL + day_path
 
