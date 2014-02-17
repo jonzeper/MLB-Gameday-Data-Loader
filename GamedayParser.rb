@@ -53,7 +53,7 @@ class GamedayParser
   def update_model_from_xml_node(model_class, xml_node)
     return if xml_node.nil?
     node_attributes = xml_attributes_to_model_attributes(xml_node, model_class)
-    instance = model_class.find_or_initialize_by_id(xml_node['id'])
+    instance = model_class.find_or_initialize_by(id: xml_node['id'])
     instance.update_attributes(node_attributes)
   end
 
@@ -88,7 +88,7 @@ class GamedayParser
         pitch_xml_node['pitch_type'] = pitch_xml_node.remove_attribute('type').value
         pitch_xml_node['ingame_id'] = pitch_xml_node.remove_attribute('id').value
         pitch_attributes = xml_attributes_to_model_attributes(pitch_xml_node, Pitch)
-        pitch = Pitch.find_or_initialize_by_at_bat_id_and_ingame_id(atbat.id, pitch_attributes['ingame_id'])
+        pitch = Pitch.find_or_initialize_by(at_bat_id: atbat.id, ingame_id: pitch_attributes['ingame_id'])
         pitch.update_attributes(pitch_attributes)
       end
     end
